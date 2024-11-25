@@ -3,6 +3,7 @@ package pl.karolpietrow.kp5
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,7 +66,7 @@ fun MainApp(viewModel: MyViewModel) {
 //        modifier = Modifier.fillMaxSize().padding(16.dp)
     ) {
         val screenCount by viewModel.screenCount.collectAsState()
-        val currentPage by remember { mutableIntStateOf(1) }
+        val currentPage by viewModel.currentScreen.collectAsState()
         val configuration = LocalConfiguration.current
         val isPortrait = configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
 
@@ -75,19 +76,21 @@ fun MainApp(viewModel: MyViewModel) {
             onScreenCountChange = { newCount -> viewModel.setScreenCount(newCount) }
         )
 
-        if (isPortrait) {
+        if (isPortrait) { // Orientacja pionowa
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { change, dragAmount ->
-                            change.consume()
-                            if (dragAmount < -50 && currentPage < screenCount - 1) {
-                                viewModel.setCurrentScreen(currentPage+1)
-                            } else if (dragAmount > 50 && currentPage > 0) {
-                                viewModel.setCurrentScreen(currentPage-1)
+                    .pointerInput(currentPage) {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                if (dragAmount < -50 && currentPage < screenCount) {
+                                    viewModel.setCurrentScreen(currentPage + 1)
+                                } else if (dragAmount > 50 && currentPage > 1) {
+                                    viewModel.setCurrentScreen(currentPage - 1)
+                                }
                             }
-                        }
+                        )
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -97,7 +100,7 @@ fun MainApp(viewModel: MyViewModel) {
                     3 -> Screen3(viewModel)
                 }
             }
-        } else {
+        } else { // Orientacja pozioma
             Row(modifier = Modifier.fillMaxSize()) {
                 if (screenCount >= 1) {
                     Screen1(viewModel, modifier = Modifier
