@@ -1,22 +1,22 @@
 package pl.karolpietrow.kp5
 
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.telephony.SmsManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Menu
@@ -34,7 +34,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,15 +41,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pl.karolpietrow.kp5.ui.theme.KP5Theme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             KP5Theme {
                 val viewModel: MyViewModel = viewModel()
@@ -97,7 +101,7 @@ fun MainApp(viewModel: MyViewModel) {
                 when (currentPage) {
                     1 -> Screen1(viewModel)
                     2 -> Screen2(viewModel)
-                    3 -> Screen3(viewModel)
+                    3 -> Screen3(viewModel, activity = LocalContext.current as ComponentActivity)
                 }
             }
         } else { // Orientacja pozioma
@@ -117,7 +121,8 @@ fun MainApp(viewModel: MyViewModel) {
                 if (screenCount >= 3) { Screen3(viewModel, modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .padding(8.dp)
+                    .padding(8.dp),
+                    activity = LocalContext.current as ComponentActivity
                 ) }
             }
         }
@@ -135,7 +140,7 @@ fun MainTopAppBar(screenCount: Int, onScreenCountChange: (Int) -> Unit) {
             titleContentColor = MaterialTheme.colorScheme.primary,
         ),
         title = {
-            Text("Aplikacja SMS")
+            Text("Aplikacja SMS (Aktywne ekrany: $screenCount)")
         },
         actions = {
             IconButton(onClick = { expanded = true } ) {
@@ -163,21 +168,6 @@ fun MainTopAppBar(screenCount: Int, onScreenCountChange: (Int) -> Unit) {
 
 }
 
-
-//@Composable
-//fun MyDropdownMenu() {
-//
-//    Column {
-//        Text("Wybierz liczbę ekranów:", style = MaterialTheme.typography.titleMedium)
-//        Box {
-//            Button(onClick = { expanded = true }) {
-//                Text("Liczba ekranów: $screenCount")
-//            }
-//
-//        }
-//    }
-//}
-
 @Composable
 fun Screen1(viewModel: MyViewModel, modifier: Modifier = Modifier) {
     val place1 = viewModel.place1.collectAsState().value
@@ -202,7 +192,8 @@ fun Screen1(viewModel: MyViewModel, modifier: Modifier = Modifier) {
         TextField(
             value = place1,
             onValueChange = { viewModel.updatePlace1(it) },
-            label = { Text("Numer telefonu")}
+            label = { Text("Numer telefonu")},
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
         Text(text=place1)
         TextField(
@@ -223,7 +214,7 @@ fun Screen2(viewModel: MyViewModel, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+    ) {
         Text(
             text = "Ekran 2",
             fontSize = 20.sp,
@@ -255,11 +246,14 @@ fun Screen2(viewModel: MyViewModel, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun Screen3(viewModel: MyViewModel, modifier: Modifier = Modifier) {
+fun Screen3(viewModel: MyViewModel, modifier: Modifier = Modifier, activity: ComponentActivity) {
+    val phoneNumber = viewModel.place1.collectAsState().value
+    val message = viewModel.place2.collectAsState().value
+
     Column(
         modifier = modifier.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+    ) {
         Text(
             text = "Ekran 3",
             fontSize = 20.sp,
@@ -267,7 +261,7 @@ fun Screen3(viewModel: MyViewModel, modifier: Modifier = Modifier) {
         )
         Button(
             onClick = {
-
+                sendSms(activity, phoneNumber, message)
             },
             modifier = Modifier
                 .height(75.dp)
@@ -284,5 +278,22 @@ fun Screen3(viewModel: MyViewModel, modifier: Modifier = Modifier) {
             )
             Text("Wyślij SMS")
         }
+    }
+}
+
+fun sendSms(activity: ComponentActivity, phoneNumber: String, message: String) {
+    if (ContextCompat.checkSelfPermission(activity, android.Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+        ActivityCompat.requestPermissions(activity, arrayOf(android.Manifest.permission.SEND_SMS), 1)
+        return
+    }
+
+    try {
+        val smsManager: SmsManager = activity.getSystemService(SmsManager::class.java)
+        smsManager.sendTextMessage(phoneNumber, null, message, null, null)
+        Toast.makeText(activity, "Wiadomość wysłana!", Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        println("Błąd podczas wysyłania wiadomości SMS")
+        Toast.makeText(activity, "Błąd podczas wysyłania wiadomości SMS!", Toast.LENGTH_SHORT).show()
     }
 }

@@ -10,6 +10,9 @@ class MyViewModel : ViewModel() {
 
     fun setScreenCount(count: Int) {
         _screenCount.value = count
+        if(_currentScreen.value > count) {
+            setCurrentScreen(count)
+        }
     }
 
     private val _currentScreen = MutableStateFlow(1)
@@ -25,16 +28,10 @@ class MyViewModel : ViewModel() {
     private val _place2 = MutableStateFlow("")
     val place2 = _place2.asStateFlow()
 
-    private val _place3 = MutableStateFlow("")
-    val place3 = _place3.asStateFlow()
-
     fun updatePlace1(newValue: String) {
         _place1.value = newValue
     }
     fun updatePlace2(newValue: String) {
         _place2.value = newValue
-    }
-    fun updatePlace3(newValue: String) {
-        _place3.value = newValue
     }
 }
